@@ -1,38 +1,50 @@
 <?php
 require 'firebase_config.php';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header("Location: index.php?error=Invalid request");
+    exit;
+}
 
-    $title = $_POST['title'] ?? '';
-    $description = $_POST['description'] ?? '';
-    $deadline = $_POST['deadline'] ?? '';
-    $priority = $_POST['priority'] ?? '';
-    $status = $_POST['status'] ?? '';
+if (empty($_COOKIE['firebase_token'])) {
+    header("Location: index.php?error=Please login first");
+    exit;
+}
 
-    // validasi
-    if ($title == '' || $description == '' || $deadline == '') {
-        header("Location: index.php?error=Please fill all required fields");
-        exit;
-    }
+try {
+    $verifiedIdToken = $auth->verifyIdToken($_COOKIE['firebase_token']);
+    $uid = $verifiedIdToken->claims()->get('sub');
+} catch (Exception $e) {
+    setcookie("firebase_token", "", time() - 3600, "/");
+    header("Location: index.php?error=Session expired. Please login again");
+    exit;
+}
 
-    try {
+$title = trim($_POST['title'] ?? '');
+$description = trim($_POST['description'] ?? '');
+$deadline = trim($_POST['deadline'] ?? '');
+$priority = trim($_POST['priority'] ?? 'low');
+$status = trim($_POST['status'] ?? 'pending');
 
-        $database->getReference('tasks')->push([
-            'title' => $title,
-            'description' => $description,
-            'deadline' => $deadline,
-            'priority' => $priority,
-            'status' => $status
-        ]);
+if ($title == '' || $description == '' || $deadline == '') {
+    header("Location: index.php?error=Please fill all required fields");
+    exit;
+}
 
-        header("Location: index.php?success=Task added successfully");
-        exit;
+try {
+    $database->getReference('tasks')->push([
+        'title' => $title,
+        'description' => $description,
+        'deadline' => $deadline,
+        'priority' => $priority,
+        'status' => $status,
+        'created_by' => $uid
+    ]);
 
-    } catch (Exception $e) {
-
-        header("Location: index.php?error=Failed to add task");
-        exit;
-
-    }
+    header("Location: index.php?success=Task added successfully");
+    exit;
+} catch (Exception $e) {
+    header("Location: index.php?error=Failed to add task");
+    exit;
 }
 ?>

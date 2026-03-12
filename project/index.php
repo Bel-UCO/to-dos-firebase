@@ -4,6 +4,8 @@ require 'firebase_config.php';
 $isLoggedIn = false;
 $authError = '';
 $displayName = '';
+$uid = '';
+$tasks = null;
 
 if (!empty($_COOKIE['firebase_token'])) {
     try {
@@ -14,14 +16,38 @@ if (!empty($_COOKIE['firebase_token'])) {
         $user = $auth->getUser($uid);
         $displayName = $user->displayName ?? $user->email ?? 'User';
 
+        $allTasks = $database->getReference('tasks')->getValue();
+
+        if ($allTasks && is_array($allTasks)) {
+            $tasks = [];
+
+            foreach ($allTasks as $id => $task) {
+                if (($task['created_by'] ?? '') === $uid) {
+                    $tasks[$id] = $task;
+                }
+            }
+
+            if (!empty($tasks)) {
+                uasort($tasks, function ($a, $b) {
+                    $dateA = strtotime($a['deadline'] ?? '');
+                    $dateB = strtotime($b['deadline'] ?? '');
+
+                    if ($dateA == $dateB) {
+                        return 0;
+                    }
+
+                    return $dateB <=> $dateA;
+                });
+            } else {
+                $tasks = null;
+            }
+        }
     } catch (Exception $e) {
         $isLoggedIn = false;
         $authError = 'Your login has expired. Please login again.';
         setcookie("firebase_token", "", time() - 3600, "/");
     }
 }
-
-$tasks = $database->getReference('tasks')->getValue();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -33,6 +59,18 @@ $tasks = $database->getReference('tasks')->getValue();
 </head>
 
 <body>
+
+    <div style="display:flex; gap:10px; justify-content:end; align-items:center; padding-bottom:1rem; width:full; border-bottom:solid black 1px;">
+        <?php if ($isLoggedIn): ?>
+            <span>Hello, <?= htmlspecialchars($displayName) ?></span>
+            <a href="logout.php">
+                <button type="button">Logout</button>
+            </a>
+        <?php else: ?>
+            <button type="button" onclick="openAuthPopup('login')">Login</button>
+            <button type="button" onclick="openAuthPopup('register')">Register</button>
+        <?php endif; ?>
+    </div>
 
     <?php if ($authError != ''): ?>
         <div class="alert error">
@@ -57,14 +95,8 @@ $tasks = $database->getReference('tasks')->getValue();
 
         <div style="display:flex; gap:10px; align-items:center;">
             <?php if ($isLoggedIn): ?>
-                <span>Hello, <?= htmlspecialchars($displayName) ?></span>
                 <button class="add-btn" onclick="openPopup()">+</button>
-                <a href="logout.php">
-                    <button type="button">Logout</button>
-                </a>
             <?php else: ?>
-                <button type="button" onclick="openAuthPopup('login')">Login</button>
-                <button type="button" onclick="openAuthPopup('register')">Register</button>
                 <button class="add-btn" type="button" onclick="openAuthPopup('login')">+</button>
             <?php endif; ?>
         </div>
@@ -84,53 +116,50 @@ $tasks = $database->getReference('tasks')->getValue();
 
         <div class="line"></div>
 
-        <?php if ($tasks == null): ?>
+        <?php if (!$isLoggedIn): ?>
+            <p style="text-align: center;">Please login to see your tasks.</p>
+        <?php elseif ($tasks == null): ?>
             <p style="text-align: center;">No tasks found.</p>
         <?php else: ?>
             <?php foreach ($tasks as $id => $task): ?>
                 <div class="task header">
-                    <p class="title"><b><?= htmlspecialchars($task['title']) ?></b></p>
-                    <p class="desc"><?= htmlspecialchars($task['description']) ?></p>
-                    <p class="deadline"><?= htmlspecialchars($task['deadline']) ?></p>
+                    <p class="title"><b><?= htmlspecialchars($task['title'] ?? '') ?></b></p>
+                    <p class="desc"><?= htmlspecialchars($task['description'] ?? '') ?></p>
+                    <p class="deadline"><?= htmlspecialchars($task['deadline'] ?? '') ?></p>
                     <p class="priority">
-                        <?php if ($task['priority'] === 'high'): ?>
+                        <?php if (($task['priority'] ?? '') === 'high'): ?>
                             <span style="color: red;"><?= htmlspecialchars($task['priority']) ?></span>
-                        <?php elseif ($task['priority'] === 'medium'): ?>
+                        <?php elseif (($task['priority'] ?? '') === 'medium'): ?>
                             <span style="color: yellow;"><?= htmlspecialchars($task['priority']) ?></span>
                         <?php else: ?>
-                            <span style="color: green;"><?= htmlspecialchars($task['priority']) ?></span>
+                            <span style="color: green;"><?= htmlspecialchars($task['priority'] ?? '') ?></span>
                         <?php endif; ?>
                     </p>
                     <p class="status">
-                        <?php if ($task['status'] === 'completed'): ?>
+                        <?php if (($task['status'] ?? '') === 'completed'): ?>
                             <span style="color: green;"><?= htmlspecialchars($task['status']) ?></span>
                         <?php else: ?>
-                            <span style="color: red;"><?= htmlspecialchars($task['status']) ?></span>
+                            <span style="color: red;"><?= htmlspecialchars($task['status'] ?? '') ?></span>
                         <?php endif; ?>
                     </p>
 
                     <div class="actions">
-                        <?php if ($isLoggedIn): ?>
-                            <button onclick="openEditPopup(
-                                '<?= htmlspecialchars($id, ENT_QUOTES) ?>',
-                                '<?= htmlspecialchars($task['title'], ENT_QUOTES) ?>',
-                                '<?= htmlspecialchars($task['description'], ENT_QUOTES) ?>',
-                                '<?= htmlspecialchars($task['deadline'], ENT_QUOTES) ?>',
-                                '<?= htmlspecialchars($task['priority'], ENT_QUOTES) ?>',
-                                '<?= htmlspecialchars($task['status'], ENT_QUOTES) ?>'
-                            )">Edit</button>
+                        <button onclick="openEditPopup(
+                            '<?= htmlspecialchars($id, ENT_QUOTES) ?>',
+                            '<?= htmlspecialchars($task['title'] ?? '', ENT_QUOTES) ?>',
+                            '<?= htmlspecialchars($task['description'] ?? '', ENT_QUOTES) ?>',
+                            '<?= htmlspecialchars($task['deadline'] ?? '', ENT_QUOTES) ?>',
+                            '<?= htmlspecialchars($task['priority'] ?? '', ENT_QUOTES) ?>',
+                            '<?= htmlspecialchars($task['status'] ?? '', ENT_QUOTES) ?>'
+                        )">Edit</button>
 
-                            <form action="delete_task.php" method="POST" style="display:inline;">
-                                <input type="hidden" name="id" value="<?= htmlspecialchars($id) ?>">
-                                <button type="submit" class="delete-btn"
-                                    onclick="return confirm('Are you sure you want to delete this task?');">
-                                    Delete
-                                </button>
-                            </form>
-                        <?php else: ?>
-                            <button type="button" onclick="openAuthPopup('login')">Edit</button>
-                            <button type="button" class="delete-btn" onclick="openAuthPopup('login')">Delete</button>
-                        <?php endif; ?>
+                        <form action="delete_task.php" method="POST" style="display:inline;">
+                            <input type="hidden" name="id" value="<?= htmlspecialchars($id) ?>">
+                            <button type="submit" class="delete-btn"
+                                onclick="return confirm('Are you sure you want to delete this task?');">
+                                Delete
+                            </button>
+                        </form>
                     </div>
                 </div>
                 <div class="line" style="height: 1px;"></div>
@@ -186,7 +215,7 @@ $tasks = $database->getReference('tasks')->getValue();
                 <button type="button" class="close-btn" onclick="closeAuthPopup()">×</button>
             </div>
 
-            <div class="auth-tabs">
+            <div style="padding-bottom:1rem;">
                 <button type="button" onclick="switchAuthTab('login')">Login</button>
                 <button type="button" onclick="switchAuthTab('register')">Register</button>
             </div>
@@ -312,4 +341,5 @@ $tasks = $database->getReference('tasks')->getValue();
     </script>
 
 </body>
+
 </html>
