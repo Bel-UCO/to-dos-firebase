@@ -3,9 +3,6 @@ require __DIR__ . '/vendor/autoload.php';
 
 use Kreait\Firebase\Factory;
 
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
-$dotenv->load();
-
 $serviceAccount = [
     'type' => getenv('FIREBASE_TYPE'),
     'project_id' => getenv('FIREBASE_PROJECT_ID'),
