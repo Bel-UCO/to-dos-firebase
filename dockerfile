@@ -25,7 +25,6 @@ COPY project/ /var/www/html/
 # Install dependensi PHP menggunakan Composer
 #RUN composer install --no-dev --prefer-dist --optimize-autoloader
 RUN composer require kreait/firebase-php
-RUN composer require vlucas/phpdotenv
 
 RUN ls -al
 
