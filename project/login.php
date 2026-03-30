@@ -13,7 +13,16 @@ try {
     $signInResult = $auth->signInWithEmailAndPassword($email, $password);
     $idToken = $signInResult->idToken();
 
-    // false for localhost/http, true only if your site uses https
+    $verifiedIdToken = $auth->verifyIdToken($idToken);
+    $uid = $verifiedIdToken->claims()->get('sub');
+    $user = $auth->getUser($uid);
+
+    if (!$user->emailVerified) {
+        setcookie("firebase_token", "", time() - 3600, "/");
+        header("Location: index.php?error=Please verify the account");
+        exit;
+    }
+
     setcookie("firebase_token", $idToken, time() + 3600, "/", "", false, true);
 
     header("Location: index.php?success=Login Success");

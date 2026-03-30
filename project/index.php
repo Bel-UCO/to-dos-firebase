@@ -10,10 +10,16 @@ $tasks = null;
 if (!empty($_COOKIE['firebase_token'])) {
     try {
         $verifiedIdToken = $auth->verifyIdToken($_COOKIE['firebase_token']);
-        $isLoggedIn = true;
-
         $uid = $verifiedIdToken->claims()->get('sub');
         $user = $auth->getUser($uid);
+
+        if (!$user->emailVerified) {
+            setcookie("firebase_token", "", time() - 3600, "/");
+            header("Location: index.php?error=Please verify the account");
+            exit;
+        }
+
+        $isLoggedIn = true;
         $displayName = $user->displayName ?? $user->email ?? 'User';
 
         $allTasks = $database->getReference('tasks')->getValue();
@@ -338,6 +344,10 @@ if (!empty($_COOKIE['firebase_token'])) {
                 authPopup.style.display = "none";
             }
         }
+
+        <?php if (isset($_GET['error']) && $_GET['error'] === 'Please verify the account'): ?>
+            alert('Please verify the account');
+        <?php endif; ?>
     </script>
 
 </body>

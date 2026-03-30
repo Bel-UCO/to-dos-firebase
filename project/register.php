@@ -15,8 +15,9 @@
 
         $createdUser = $auth->createUser($userProperties);
 
+        $auth->sendEmailVerificationLink($userProperties['email']);
 
-        header("Location: index.php?success=Register Success");
+        header("Location: index.php?success=Register Success, please verify your email");
         exit;
 
     } catch (Exception $e) {
