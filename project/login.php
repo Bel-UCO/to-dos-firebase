@@ -28,6 +28,14 @@ try {
     header("Location: index.php?success=Login Success");
     exit;
 
+} catch (\Kreait\Firebase\Exception\Auth\InvalidPassword $e) {
+    header("Location: index.php?error=Wrong password");
+    exit;
+
+} catch (\Kreait\Firebase\Exception\Auth\UserNotFound $e) {
+    header("Location: index.php?error=Account not found");
+    exit;
+
 } catch (Exception $e) {
     header("Location: index.php?error=Failed to login");
     exit;
