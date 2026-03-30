@@ -1,6 +1,8 @@
 <?php
 require 'firebase_config.php';
 
+use Kreait\Firebase\Auth\SignIn\FailedToSignIn;
+
 $email = $_POST['email'] ?? '';
 $password = $_POST['password'] ?? '';
 
@@ -28,16 +30,24 @@ try {
     header("Location: index.php?success=Login Success");
     exit;
 
-} catch (\Kreait\Firebase\Exception\Auth\InvalidPassword $e) {
-    header("Location: index.php?error=Wrong password");
-    exit;
+} catch (FailedToSignIn $e) {
+    $message = $e->getMessage();
 
-} catch (\Kreait\Firebase\Exception\Auth\UserNotFound $e) {
-    header("Location: index.php?error=Account not found");
+    if (
+        stripos($message, 'INVALID_LOGIN_CREDENTIALS') !== false ||
+        stripos($message, 'INVALID_PASSWORD') !== false ||
+        stripos($message, 'EMAIL_NOT_FOUND') !== false ||
+        stripos($message, 'INVALID_EMAIL') !== false
+    ) {
+        header("Location: index.php?error=Wrong email or password");
+        exit;
+    }
+
+    header("Location: index.php?error=" . urlencode($message));
     exit;
 
 } catch (Exception $e) {
-    header("Location: index.php?error=Failed to login");
+    header("Location: index.php?error=" . urlencode($e->getMessage()));
     exit;
 }
 ?>
