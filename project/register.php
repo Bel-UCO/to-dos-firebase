@@ -15,12 +15,17 @@ if ($userProperties['email'] == '' || $userProperties['password'] == '' || $user
 try {
     $createdUser = $auth->createUser($userProperties);
 
-    $auth->sendEmailVerificationLink($userProperties['email']);
+    $actionCodeSettings = [
+        'continueUrl' => 'https://to-dos-firebase.onrender.com/login_page.php',
+        'handleCodeInApp' => false,
+    ];
 
-    header("Location: login_page.php?success=Register Success, please verify your email");
+    $auth->sendEmailVerificationLink($userProperties['email'], $actionCodeSettings);
+
+    header("Location: index.php?success=Register Success, please verify your email");
     exit;
 } catch (Exception $e) {
-    header("Location: index.php?error=Failed to register");
+    header("Location: index.php?error=" . urlencode($e->getMessage()));
     exit;
 }
 ?>
